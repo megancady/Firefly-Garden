@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Firefly Garden — V3</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--ink:#17331f;--cream:#fff9df;--gold:#f4d35e;--sage:#8dbb72;--dark:#16331f}
+body{width:100vw;height:100vh;overflow:hidden;font-family:Georgia,"Times New Roman",serif;background:#17331f;color:var(--cream);user-select:none}
+.screen{display:none;width:100%;height:100%;align-items:center;justify-content:center;padding:24px}
+.screen.active{display:flex}
+.card{width:min(760px,94vw);max-height:92vh;overflow:auto;background:#173c27;border:1px solid rgba(244,211,94,.32);border-radius:20px;padding:32px;text-align:center;box-shadow:0 22px 70px rgba(0,0,0,.3)}
+h1,h2{color:var(--gold);margin-bottom:14px} h1{font-size:2.2rem} h2{font-size:1.5rem}
+p{color:#dcebd3;line-height:1.68;font-size:1.02rem}
+.note{margin:18px 0;padding:18px;border-radius:13px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.08);text-align:left}
+button{margin-top:18px;padding:13px 30px;border:0;border-radius:10px;background:var(--gold);color:#17331f;font:bold 1rem Georgia,serif;cursor:pointer}
+input{width:260px;padding:12px 14px;margin-top:16px;border-radius:9px;border:1px solid rgba(244,211,94,.45);background:rgba(255,255,255,.08);color:#fff;text-align:center;font:1.05rem Georgia,serif;outline:none}
+.error{display:none;color:#ff9b8d;margin-top:8px;font-size:.9rem}
+.leaderboard{max-width:480px;margin:18px auto 4px;text-align:left}
+.leader-row{display:grid;grid-template-columns:44px 1fr auto;padding:10px 13px;border-bottom:1px solid rgba(255,255,255,.08)}
+.rank,.score{color:var(--gold);font-weight:bold}.small{font-size:.88rem;color:#a9c5a5}
+
+/* Garden: all CSS/HTML, no image board */
+#task{position:relative;padding:0;background:#8fbd71}
+#garden{position:absolute;inset:0;overflow:hidden;background:
+radial-gradient(circle at 48% 48%,rgba(255,245,176,.17),transparent 24%),
+linear-gradient(#a5cc82 0%,#91bd70 55%,#7eaa62 100%);cursor:default}
+
+/* distant, non-clickable scenery */
+.skyGlow{position:absolute;left:0;right:0;top:0;height:18%;background:linear-gradient(rgba(220,239,188,.32),transparent);pointer-events:none}
+.fence{position:absolute;left:0;right:0;top:12%;height:8%;opacity:.35;pointer-events:none;background:
+repeating-linear-gradient(90deg,transparent 0 65px,#6d5935 65px 71px,transparent 71px 90px),
+linear-gradient(transparent 45%,#80683e 46% 55%,transparent 56%)}
+.edgeTree{position:absolute;top:-5%;font-size:clamp(120px,16vw,230px);opacity:.78;filter:saturate(.75);pointer-events:none}
+.edgeTree.left{left:-4%}.edgeTree.right{right:-4%;transform:scaleX(-1)}
+.grassTuft,.tinyBloom{position:absolute;pointer-events:none;opacity:.38}
+.grassTuft{font-size:1.7rem}.tinyBloom{font-size:1.25rem}
+
+/* Interactable environmental objects — no hover styling */
+.obj{position:absolute;z-index:12;cursor:default}
+.objArt{width:100%;height:100%;display:flex;align-items:center;justify-content:center;pointer-events:none;filter:drop-shadow(0 8px 5px rgba(39,67,30,.2))}
+#tree{left:5%;top:22%;width:16%;height:30%} #tree .objArt{font-size:clamp(78px,9vw,130px);opacity:.82}
+#bush{right:7%;top:30%;width:15%;height:18%} #bush .objArt{font-size:clamp(62px,7vw,105px);opacity:.8}
+#rock{left:14%;bottom:18%;width:12%;height:13%} #rock .objArt{font-size:clamp(52px,6vw,88px);opacity:.78}
+#mushrooms{right:16%;bottom:18%;width:12%;height:13%} #mushrooms .objArt{font-size:clamp(48px,5.5vw,80px);opacity:.8}
+
+/* target flower */
+.soil{position:absolute;z-index:8;left:50%;top:59%;transform:translate(-50%,-50%);width:220px;height:72px;border-radius:50%;background:radial-gradient(ellipse,#77552f 0,#8c6a3b 48%,rgba(117,91,50,.08) 72%,transparent 74%);opacity:.72;pointer-events:none}
+#flower{left:50%;top:48%;transform:translate(-50%,-50%);width:210px;height:245px;z-index:18}
+#flower .objArt{font-size:clamp(112px,12vw,175px);filter:drop-shadow(0 0 14px rgba(255,225,96,.45)) drop-shadow(0 12px 7px rgba(48,68,30,.25));opacity:1}
+.softGlow{position:absolute;z-index:7;left:50%;top:49%;transform:translate(-50%,-50%);width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(255,237,128,.18),rgba(255,237,128,.05) 45%,transparent 68%);pointer-events:none}
+
+/* HUD only: no timer/countdown */
+#hud{position:absolute;z-index:35;top:16px;left:18px;right:18px;display:flex;justify-content:space-between;align-items:center;pointer-events:none}
+.pill{background:rgba(18,53,31,.82);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:9px 15px;box-shadow:0 5px 16px rgba(0,0,0,.16)}
+#counter{color:#fff2a5;font-weight:bold;font-size:1.05rem}
+#round{color:#e8f2df;font-size:.93rem}
+
+/* neutral click feedback identical everywhere */
+.spark{position:fixed;z-index:80;pointer-events:none;transform:translate(-50%,-50%);color:#fff4b0;text-shadow:0 0 8px rgba(255,230,90,.8);animation:spark .42s ease-out forwards;font-size:1.05rem}
+@keyframes spark{to{opacity:0;transform:translate(-50%,-72%) scale(1.45)}}
+
+/* outcome */
+#outcome{display:none;position:fixed;inset:0;z-index:100;align-items:center;justify-content:center;background:rgba(10,31,18,.76);text-align:center}
+#outcome.active{display:flex}.outIcon{font-size:5rem}.outTitle{font-size:2rem;color:var(--gold);font-weight:bold;margin-top:8px}.outSub{margin-top:8px;color:#dcebd3}
+.fly{position:fixed;z-index:110;width:9px;height:9px;border-radius:50%;background:#fff5a8;box-shadow:0 0 11px 5px rgba(255,231,83,.8);animation:fly 1.15s ease-out forwards;pointer-events:none}
+@keyframes fly{0%{opacity:0}25%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.35)}}
+#iti{display:none;position:fixed;inset:0;z-index:95;align-items:center;justify-content:center;background:#17331f;color:rgba(244,211,94,.3);font-size:2rem}
+#iti.active{display:flex}
+</style>
+</head>
+<body>
+<section id="idScreen" class="screen active"><div class="card">
+<h1>✨ Firefly Garden Game ✨</h1>
+<h2>Participant ID</h2>
+<p>Enter the participant ID provided by the researcher.</p>
+<input id="pid" placeholder="e.g. P001" maxlength="24"><div id="err" class="error">Please enter a participant ID.</div><br>
+<button onclick="confirmID()">Continue →</button>
+</div></section>
+
+<section id="instructionsScreen" class="screen"><div class="card">
+<h1>✨ Firefly Garden Game ✨</h1>
+<h2>Instructions:</h2>
+<div class="note"><p>During each round, a flower will appear in the garden. You may interact with the garden while the flower is present, or you may choose not to interact with anything.<br><br>Different flowers may be associated with different ways that fireflies appear. Pay attention to what happens and try to collect as many fireflies as possible.</p></div>
+<h2>Garden Leaderboard</h2>
+<div class="leaderboard">
+<div class="leader-row"><span class="rank">1</span><span>Participant 014</span><span class="score">18 ✨</span></div>
+<div class="leader-row"><span class="rank">2</span><span>Participant 008</span><span class="score">16 ✨</span></div>
+<div class="leader-row"><span class="rank">3</span><span>Participant 021</span><span class="score">15 ✨</span></div>
+<div class="leader-row"><span class="rank">4</span><span>Participant 001</span><span class="score">14 ✨</span></div>
+<div class="leader-row"><span class="rank">5</span><span>Participant 017</span><span class="score">12 ✨</span></div>
+</div>
+<p class="small" style="margin-top:10px">See how many fireflies you can collect!</p>
+<button onclick="begin()">Start Game →</button>
+</div></section>
+
+<section id="task" class="screen">
+<div id="garden">
+<div class="skyGlow"></div><div class="fence"></div>
+<div class="edgeTree left">🌳</div><div class="edgeTree right">🌳</div>
+<div class="grassTuft" style="left:30%;top:27%">🌱</div><div class="grassTuft" style="left:69%;top:23%">🌱</div>
+<div class="grassTuft" style="left:33%;bottom:15%">🌱</div><div class="grassTuft" style="right:31%;bottom:13%">🌱</div>
+<div class="tinyBloom" style="left:27%;top:39%">🌼</div><div class="tinyBloom" style="right:29%;top:38%">🌼</div>
+<div class="tinyBloom" style="left:37%;bottom:22%">🌸</div><div class="tinyBloom" style="right:36%;bottom:24%">🌼</div>
+<div class="softGlow"></div><div class="soil"></div>
+<div id="tree" class="obj" data-object="tree"><div class="objArt">🌳</div></div>
+<div id="bush" class="obj" data-object="bush"><div class="objArt">🌿</div></div>
+<div id="rock" class="obj" data-object="rock"><div class="objArt">🪨</div></div>
+<div id="mushrooms" class="obj" data-object="mushrooms"><div class="objArt">🍄</div></div>
+<div id="flower" class="obj" data-object="flower"><div class="objArt" id="flowerArt">🌻</div></div>
+</div>
+<div id="hud"><div id="round" class="pill">Round 1</div><div id="counter" class="pill">✨ 0 fireflies</div></div>
+</section>
+
+<div id="outcome"><div><div class="outIcon" id="outIcon">✨</div><div class="outTitle" id="outTitle">Firefly Found!</div><div class="outSub" id="outSub"></div></div></div>
+<div id="iti">✦</div>
+
+<section id="endScreen" class="screen"><div class="card">
+<h1>🌙 Garden Complete</h1><p id="final"></p>
+<div class="note"><p class="small">Your session is complete. Please download the data file and provide it to the researcher.</p></div>
+<button onclick="downloadCSV()">Download Data</button>
+</div></section>
+
+<script>
+const CFG={trialDuration:10000,outcomeDuration:1400,itiDuration:1200,trialsPerCondition:20,rr:2};
+const FLOWERS=["🌻","🌺","🌷"];
+const S={id:"",start:null,date:"",seq:[],idx:0,current:null,fireflies:0,clickRows:[],trialRows:[],targetClicks:0,alts:{tree:0,bush:0,rock:0,mushrooms:0,ground:0},totalClicks:0,flowerMap:{}};
+
+function show(id){document.querySelectorAll(".screen").forEach(e=>e.classList.remove("active"));if(id)document.getElementById(id).classList.add("active")}
+document.getElementById("pid").addEventListener("keydown",e=>{if(e.key==="Enter")confirmID()});
+function hash(s){let h=2166136261;for(let c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function shuffle(a,seed){a=a.slice();let x=seed||1;function r(){x^=x<<13;x^=x>>>17;x^=x<<5;return(x>>>0)/4294967296}for(let i=a.length-1;i>0;i--){let j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function confirmID(){
+let id=document.getElementById("pid").value.trim();
+if(!id){document.getElementById("err").style.display="block";return}
+document.getElementById("err").style.display="none";
+S.id=id;
+show("instructionsScreen")
+}
+function begin(){
+S.start=Date.now();S.date=new Date().toISOString().slice(0,10);
+let seed=hash(S.id),f=shuffle(FLOWERS,seed+404);S.flowerMap={INS:f[0],OMS:f[1],PAV:f[2]};
+for(let i=0;i<CFG.trialsPerCondition;i++)S.seq.push(...shuffle(["INS","OMS","PAV"],seed+i*7919));
+next()
+}
+function next(){if(S.idx>=S.seq.length)return finish();let cond=S.seq[S.idx];S.targetClicks=0;S.totalClicks=0;S.alts={tree:0,bush:0,rock:0,mushrooms:0,ground:0};
+S.current={trial:S.idx+1,condition:cond,flower:S.flowerMap[cond],start:Date.now()};document.getElementById("flowerArt").textContent=S.current.flower;
+document.getElementById("round").textContent=`Round ${S.current.trial} / ${S.seq.length}`;document.getElementById("counter").textContent=`✨ ${S.fireflies} firefl${S.fireflies===1?"y":"ies"}`;
+show("task");S.handle=setTimeout(endTrial,CFG.trialDuration)}
+document.getElementById("garden").addEventListener("click",e=>{if(!S.current)return;let el=e.target.closest("[data-object]");let obj=el?el.dataset.object:"ground";let target=obj==="flower";
+if(target)S.targetClicks++;else if(obj in S.alts)S.alts[obj]++;S.totalClicks++;
+S.clickRows.push({Subject:S.id,Date:S.date,SessionTime_ms:Date.now()-S.start,TrialNum:S.current.trial,TrialTime_ms:Date.now()-S.current.start,Condition:S.current.condition,Flower:S.current.flower,Object:obj,Target:target?1:0,X:Math.round(e.clientX),Y:Math.round(e.clientY),TargetClickNum:S.targetClicks,TotalClickNum:S.totalClicks});spark(e.clientX,e.clientY)});
+function spark(x,y){let s=document.createElement("div");s.className="spark";s.textContent="✦";s.style.left=x+"px";s.style.top=y+"px";document.body.appendChild(s);setTimeout(()=>s.remove(),450)}
+function calculateOutcome(cond,n){if(cond==="PAV")return true;let reinforced=cond==="OMS";for(let i=0;i<n;i++){if(Math.floor(Math.random()*CFG.rr)===0){if(cond==="INS")reinforced=true;else if(cond==="OMS")reinforced=false}}return reinforced}
+function endTrial(){clearTimeout(S.handle);if(!S.current)return;let c=S.current,r=calculateOutcome(c.condition,S.targetClicks);if(r)S.fireflies++;
+S.trialRows.push({Subject:S.id,Date:S.date,TrialNum:c.trial,Condition:c.condition,Flower:c.flower,RR:c.condition==="PAV"?"NA":CFG.rr,TargetClicks:S.targetClicks,TreeClicks:S.alts.tree,BushClicks:S.alts.bush,RockClicks:S.alts.rock,MushroomClicks:S.alts.mushrooms,GroundClicks:S.alts.ground,AlternativeClicks:Object.values(S.alts).reduce((a,b)=>a+b,0),TotalClicks:S.totalClicks,NoResponse:S.totalClicks===0?1:0,Reinforced:r?1:0,CumulativeFireflies:S.fireflies});
+S.current=null;S.idx++;showOutcome(r)}
+function showOutcome(r){document.getElementById("outIcon").textContent=r?"✨":"🌙";document.getElementById("outTitle").textContent=r?"Firefly Found!":"No firefly this round.";document.getElementById("outSub").textContent=`Total: ${S.fireflies} firefl${S.fireflies===1?"y":"ies"}`;document.getElementById("outcome").classList.add("active");if(r)flies();
+setTimeout(()=>{document.getElementById("outcome").classList.remove("active");document.getElementById("iti").classList.add("active");setTimeout(()=>{document.getElementById("iti").classList.remove("active");next()},CFG.itiDuration)},CFG.outcomeDuration)}
+function flies(){for(let i=0;i<10;i++){let f=document.createElement("div");f.className="fly";f.style.left=(45+Math.random()*10)+"vw";f.style.top=(45+Math.random()*10)+"vh";f.style.setProperty("--dx",(-110+Math.random()*220)+"px");f.style.setProperty("--dy",(-70-Math.random()*160)+"px");document.body.appendChild(f);setTimeout(()=>f.remove(),1200)}}
+function finish(){show("endScreen");document.getElementById("final").textContent=`You collected ${S.fireflies} firefl${S.fireflies===1?"y":"ies"}! ✨`}
+function esc(v){if(v==null)return"";v=String(v);return/[",\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v}
+function downloadCSV(){let cc=["Subject","Date","SessionTime_ms","TrialNum","TrialTime_ms","Condition","Flower","Object","Target","X","Y","TargetClickNum","TotalClickNum"];
+let tc=["Subject","Date","TrialNum","Condition","Flower","RR","TargetClicks","TreeClicks","BushClicks","RockClicks","MushroomClicks","GroundClicks","AlternativeClicks","TotalClicks","NoResponse","Reinforced","CumulativeFireflies"];
+let l=["CLICK_LEVEL_DATA",cc.join(",")];for(let r of S.clickRows)l.push(cc.map(c=>esc(r[c])).join(","));l.push("","TRIAL_LEVEL_DATA",tc.join(","));for(let r of S.trialRows)l.push(tc.map(c=>esc(r[c])).join(","));
+let b=new Blob([l.join("\n")],{type:"text/csv;charset=utf-8"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=`${S.id}_${S.date}_firefly_garden_v3.csv`;a.click();URL.revokeObjectURL(u)}
+</script>
+</body>
+</html>
